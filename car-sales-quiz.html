@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汽车销售知识问答测试</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Vue 动画过渡效果 */
+        .fade-enter-active,
+        .fade-leave-active {
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        .fade-enter-from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        .fade-leave-to {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-50 min-h-screen flex items-center justify-center p-4 sm:p-8 selection:bg-emerald-500 selection:text-black">
+
+    <div id="app" class="w-full max-w-2xl">
+
+        <!-- 头部进度条和标题 -->
+        <header class="mb-8" v-if="!isFinished">
+            <div class="flex justify-between items-end mb-4">
+                <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">销售精英摸底测试</h1>
+                <span class="text-zinc-400 font-mono text-sm">
+                    {{ currentIdx + 1 }} / {{ questions.length }}
+                </span>
+            </div>
+            <!-- 极简进度条 -->
+            <div class="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden">
+                <div class="bg-white h-full transition-all duration-500 ease-out"
+                     :style="{ width: progressPercentage + '%' }"></div>
+            </div>
+        </header>
+
+        <!-- 主题内容区：使用过渡动画 -->
+        <transition name="fade" mode="out-in">
+
+            <!-- 问答界面 -->
+            <main v-if="!isFinished" :key="currentIdx" class="bg-zinc-900/50 border border-zinc-800 p-6 sm:p-10 rounded-2xl shadow-2xl backdrop-blur-sm">
+                <h2 class="text-2xl sm:text-3xl font-semibold leading-tight mb-8">
+                    {{ currentQuestion.question }}
+                </h2>
+
+                <div class="space-y-4">
+                    <button
+                        v-for="(option, index) in currentQuestion.options"
+                        :key="index"
+                        @click="selectOption(index)"
+                        :disabled="hasAnswered"
+                        :class="[
+                            'w-full text-left p-5 rounded-xl border-2 transition-all duration-200 flex justify-between items-center group outline-none',
+                            getOptionClass(index)
+                        ]"
+                    >
+                        <span class="text-base sm:text-lg">{{ option }}</span>
+
+                        <!-- 选项图标反馈 -->
+                        <span v-if="hasAnswered && index === currentQuestion.answer" class="text-black">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        </span>
+                        <span v-if="hasAnswered && selectedOption === index && index !== currentQuestion.answer" class="text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                        </span>
+                    </button>
+                </div>
+
+                <!-- 下一题按钮 -->
+                <div class="mt-8 flex justify-end min-h-[48px]">
+                    <transition name="fade">
+                        <button
+                            v-if="hasAnswered"
+                            @click="nextQuestion"
+                            class="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-zinc-200 transition-colors flex items-center gap-2"
+                        >
+                            {{ isLastQuestion ? '查看结果' : '下一题' }}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        </button>
+                    </transition>
+                </div>
+            </main>
+
+            <!-- 结果界面 -->
+            <main v-else key="result" class="bg-zinc-900/50 border border-zinc-800 p-8 sm:p-12 rounded-2xl shadow-2xl text-center">
+                <div class="w-20 h-20 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0z"/></svg>
+                </div>
+
+                <h2 class="text-3xl sm:text-4xl font-bold text-white mb-2">测试完成！</h2>
+                <p class="text-zinc-400 mb-8">您答对了 {{ score }} 道题，共 {{ questions.length }} 道题。</p>
+
+                <div class="text-6xl font-black tracking-tighter mb-8" :class="scoreColor">
+                    {{ Math.round((score / questions.length) * 100) }}<span class="text-3xl">%</span>
+                </div>
+
+                <p class="text-lg text-zinc-300 mb-10">{{ feedbackMessage }}</p>
+
+                <button
+                    @click="restart"
+                    class="bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-zinc-200 transition-colors inline-flex items-center gap-2 w-full sm:w-auto justify-center"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    重新测试
+                </button>
+            </main>
+
+        </transition>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        const App = {
+            setup() {
+                // 题库数据：汽车销售基础与常识
+                const questions = [
+                    {
+                        question: "在汽车销售术语中，'MSRP' 代表什么？",
+                        options: [
+                            "每月标准租金 (Monthly Standard Rental Price)",
+                            "最低销售保留价 (Minimum Sales Reserve Price)",
+                            "制造商建议零售价 (Manufacturer's Suggested Retail Price)",
+                            "最大安全行驶里程 (Maximum Safe Running Pace)"
+                        ],
+                        answer: 2
+                    },
+                    {
+                        question: "在描述汽车性能时，'扭矩' (Torque) 和 '马力' (Horsepower) 的关系最准确的描述是？",
+                        options: [
+                            "扭矩决定了车辆的最高极速，马力决定了起步加速能力",
+                            "扭矩决定了车辆的起步加速和牵引力，马力决定了最高极速",
+                            "扭矩只与发动机体积有关，与性能无关",
+                            "马力是扭矩和重量的差值"
+                        ],
+                        answer: 1
+                    },
+                    {
+                        question: "经典销售法则 'FABE' 中，字母 'B' 代表什么？",
+                        options: [
+                            "Belief (信任 - 建立客户信任)",
+                            "Brand (品牌 - 强调品牌价值)",
+                            "Budget (预算 - 确认客户购车预算)",
+                            "Benefit (利益 - 产品能给客户带来的实际好处)"
+                        ],
+                        answer: 3
+                    },
+                    {
+                        question: "下列哪项安全配置属于现代汽车的'主动安全' (Active Safety) 系统？",
+                        options: [
+                            "安全气囊 (Airbags)",
+                            "自动紧急制动系统 (AEB)",
+                            "高强度钢车身结构",
+                            "预紧式安全带"
+                        ],
+                        answer: 1
+                    },
+                    {
+                        question: "当客户在展厅表示 '这车价格太贵了'，作为销售顾问，第一步应该怎么做？",
+                        options: [
+                            "立刻请示经理申请更多优惠",
+                            "直接反驳客户，强调车辆配置高绝对值这个价",
+                            "认同客户的感受，并进一步探寻觉得贵的真实原因",
+                            "建议客户去看店里的二手车或其他便宜车型"
+                        ],
+                        answer: 2
+                    },
+                    {
+                        question: "在四驱系统中，'AWD' 通常指的是什么？",
+                        options: [
+                            "分时四驱 (Part-time 4WD)",
+                            "适时/全时四驱 (All-Wheel Drive)",
+                            "前轮驱动 (Advanced Wheel Drive)",
+                            "防抱死系统 (Anti-Wheel lock Drive)"
+                        ],
+                        answer: 1
+                    }
+                ];
+
+                // 状态管理
+                const currentIdx = ref(0);
+                const selectedOption = ref(null);
+                const score = ref(0);
+                const isFinished = ref(false);
+
+                // 计算属性
+                const currentQuestion = computed(() => questions[currentIdx.value]);
+                const hasAnswered = computed(() => selectedOption.value !== null);
+                const isLastQuestion = computed(() => currentIdx.value === questions.length - 1);
+                const progressPercentage = computed(() => ((currentIdx.value) / questions.length) * 100);
+
+                const scoreColor = computed(() => {
+                    const ratio = score.value / questions.length;
+                    if (ratio >= 0.8) return 'text-emerald-400';
+                    if (ratio >= 0.6) return 'text-yellow-400';
+                    return 'text-red-400';
+                });
+
+                const feedbackMessage = computed(() => {
+                    const ratio = score.value / questions.length;
+                    if (ratio === 1) return "完美！您是一位资深的汽车销售专家！";
+                    if (ratio >= 0.8) return "非常出色！您对汽车销售知识掌握得很扎实。";
+                    if (ratio >= 0.6) return "不错！基本功及格，再复习一下细节就更完美了。";
+                    return "需要努力哦！建议重新温习一下基础的汽车和销售知识。";
+                });
+
+                // 方法
+                const selectOption = (index) => {
+                    if (hasAnswered.value) return; // 防止重复点击
+                    selectedOption.value = index;
+                    if (index === currentQuestion.value.answer) {
+                        score.value++;
+                    }
+                };
+
+                const nextQuestion = () => {
+                    if (isLastQuestion.value) {
+                        isFinished.value = true;
+                    } else {
+                        currentIdx.value++;
+                        selectedOption.value = null;
+                    }
+                };
+
+                const restart = () => {
+                    currentIdx.value = 0;
+                    selectedOption.value = null;
+                    score.value = 0;
+                    isFinished.value = false;
+                };
+
+                // 动态计算选项的 Tailwind 类名实现高对比度状态反馈
+                const getOptionClass = (index) => {
+                    // 尚未答题：极简暗色风格，悬停亮色边框
+                    if (!hasAnswered.value) {
+                        return 'border-zinc-700 bg-zinc-900/50 text-zinc-300 hover:border-white hover:text-white cursor-pointer';
+                    }
+
+                    const isCorrectOption = index === currentQuestion.value.answer;
+                    const isSelectedOption = index === selectedOption.value;
+
+                    // 答对的选项：高对比度翠绿色背景 + 黑色文字
+                    if (isCorrectOption) {
+                        return 'border-emerald-400 bg-emerald-400 text-zinc-950 font-bold transform scale-[1.02] shadow-[0_0_20px_rgba(52,211,153,0.3)] z-10';
+                    }
+
+                    // 选错的选项：高对比度红色背景 + 白色文字
+                    if (isSelectedOption && !isCorrectOption) {
+                        return 'border-red-500 bg-red-500 text-white font-bold';
+                    }
+
+                    // 其他未选的错误选项：降低透明度
+                    return 'border-zinc-800 bg-zinc-950 text-zinc-600 opacity-40 cursor-not-allowed';
+                };
+
+                return {
+                    questions,
+                    currentIdx,
+                    selectedOption,
+                    score,
+                    isFinished,
+                    currentQuestion,
+                    hasAnswered,
+                    isLastQuestion,
+                    progressPercentage,
+                    scoreColor,
+                    feedbackMessage,
+                    selectOption,
+                    nextQuestion,
+                    restart,
+                    getOptionClass
+                };
+            }
+        };
+
+        createApp(App).mount('#app');
+    </script>
+</body>
+</html>
